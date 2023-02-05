@@ -1,4 +1,5 @@
-﻿using Aspects;
+﻿using System.Diagnostics;
+using Aspects;
 using Components;
 using Unity.Burst;
 using Unity.Collections;
@@ -6,6 +7,7 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace Systems
 {
@@ -59,19 +61,10 @@ namespace Systems
             var gridPosition = grid.WorldToGrid(mousePosition);
             if (!grid.ValidPosition(gridPosition)) return;
 
-            var positions = new NativeList<uint2>(Allocator.TempJob);
+            var positions = new NativeList<uint2>(Allocator.Temp);
             var brush = SystemAPI.GetSingleton<BrushComponent>();
-            
-            positions.Add(gridPosition);
-            new GetPositionsJob
-            {
-                Center = gridPosition,
-                Positions = positions,
-                Radius = brush.BrushSize
-            }
-                .Schedule((int) brush.BrushSize, 32)
-                .Complete();
-            
+            GetRoundedRectanglePositions(ref positions, gridPosition, brush.BrushSize);
+
             var count = positions.Length;
             var entities = new NativeArray<Entity>(count, Allocator.Temp);
             
@@ -89,28 +82,22 @@ namespace Systems
             positions.Dispose();
             entities.Dispose();
         }
-    }
 
-    [BurstCompile]
-    public struct GetPositionsJob : IJobParallelFor
-    {
-        [ReadOnly] public uint Radius;
-        [ReadOnly] public uint2 Center;
-        [WriteOnly] [NativeDisableParallelForRestriction] 
-        public NativeList<uint2> Positions;
-
-        [BurstCompile]
-        public void Execute(int r)
+        private static void GetRoundedRectanglePositions(ref NativeList<uint2> positions, uint2 center, uint radius)
         {
-            var rr = Radius - 1;
+            var rr = radius - 1;
             
-            for (var x = Center.x - rr; x <= Center.x + rr; x++) {
-                for (var y = Center.y - rr; y <= Center.y + rr; y++) {
-                    if (Mathf.Sqrt((x - Center.x) * (x - Center.x) + (y - Center.y) * (y - Center.y)) <= r + 1 && Mathf.Sqrt((x - Center.x) * (x - Center.x) + (y - Center.y) * (y - Center.y)) > r) {
-                        Positions.Add(new uint2(x, y));
+            for (var r = 0; r < rr; r++) {
+                for (var x = center.x - rr; x <= center.x + rr; x++) {
+                    for (var y = center.y - rr; y <= center.y + rr; y++) {
+                        if (Mathf.Sqrt((x - center.x) * (x - center.x) + (y - center.y) * (y - center.y)) <= r + 1 && Mathf.Sqrt((x - center.x) * (x - center.x) + (y - center.y) * (y - center.y)) > r) {
+                            positions.Add(new uint2(x, y));
+                        }
                     }
                 }
             }
+            
+            positions.Add(center);
         }
     }
 
