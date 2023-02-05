@@ -1,4 +1,5 @@
-﻿using Aspects;
+﻿using System;
+using Aspects;
 using Components;
 using Unity.Burst;
 using Unity.Collections;
@@ -25,29 +26,50 @@ namespace Systems
         public void OnUpdate(ref SystemState state)
         {
             var grid = SystemAPI.GetSingleton<GridComponent>();
-            var cellCounts = (int) (grid.Width * grid.Height);
-            
+            var cellCounts = (int)(grid.Width * grid.Height);
+
             var cells = new NativeArray<CellAspect>(cellCounts, Allocator.TempJob);
             var cellOccupationState = new NativeArray<bool>(cellCounts, Allocator.TempJob);
-            
-            foreach (var cellAspect in SystemAPI.Query<CellAspect>())
-            {
-                var pos = cellAspect.Cell.ValueRO.Position;
-                var i = (int) MathUtilities.FlattenToIndex(pos.x, pos.y, grid.Width);
-                cells[i] = cellAspect;
-                cellOccupationState[i] = true;
-            }
 
-            var job = new UpdateJob
-            {
-                CellArray = cells,
-                CellOccupied = cellOccupationState,
-                Grid = grid
-            }.ScheduleParallel(state.Dependency);
+            new FillNativeArraysJob
+                {
+                    CellArray = cells,
+                    CellOccupied = cellOccupationState,
+                    Grid = grid
+                }.ScheduleParallel(state.Dependency)
+                .Complete();
 
-            job.Complete();
+            new UpdateJob
+                {
+                    CellArray = cells,
+                    CellOccupied = cellOccupationState,
+                    Grid = grid
+                }.ScheduleParallel(state.Dependency)
+                .Complete();
+
             cells.Dispose();
             cellOccupationState.Dispose();
+        }
+    }
+
+    [BurstCompile]
+    public partial struct FillNativeArraysJob : IJobEntity
+    {
+        [NativeDisableParallelForRestriction] [WriteOnly]
+        public NativeArray<CellAspect> CellArray;
+
+        [NativeDisableParallelForRestriction] [WriteOnly]
+        public NativeArray<bool> CellOccupied;
+
+        [ReadOnly] public GridComponent Grid;
+
+        [BurstCompile]
+        private void Execute(CellAspect cellAspect)
+        {
+            var pos = cellAspect.Cell.ValueRO.Position;
+            var i = (int)MathUtilities.FlattenToIndex(pos.x, pos.y, Grid.Width);
+            CellArray[i] = cellAspect;
+            CellOccupied[i] = true;
         }
     }
 
@@ -57,16 +79,29 @@ namespace Systems
         [ReadOnly] public NativeArray<CellAspect> CellArray;
         [ReadOnly] public NativeArray<bool> CellOccupied;
         [ReadOnly] public GridComponent Grid;
-        
+
         [BurstCompile]
         private void Execute(CellAspect cellAspect)
         {
-            var position = cellAspect.Cell.ValueRO.Position;
-            var newPos = new uint2(position.x, position.y + 1);
-            var index = (int) MathUtilities.FlattenToIndex(newPos.x, newPos.y, Grid.Width);
-            if (index < 0 || index >= CellArray.Length) return;
-            if (CellOccupied[index]) return;
-            cellAspect.Move(Grid, newPos);
+            switch (cellAspect.Material.ValueRO.CellType)
+            {
+                case CellType.StationarySolid:
+                    break;
+                case CellType.FallingSolid:
+                    var position = cellAspect.Cell.ValueRO.Position;
+                    var newPos = new uint2(position.x, position.y - 1);
+                    var index = (int)MathUtilities.FlattenToIndex(newPos.x, newPos.y, Grid.Width);
+                    if (index < 0 || index >= CellArray.Length) return;
+                    if (CellOccupied[index]) return;
+                    cellAspect.Move(Grid, newPos);
+                    break;
+                case CellType.Liquid:
+                    break;
+                case CellType.Gas:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
     }
 }

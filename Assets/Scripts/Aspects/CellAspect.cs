@@ -8,10 +8,8 @@ namespace Aspects
 {
     public readonly partial struct CellAspect : IAspect
     {
-        public readonly Entity Entity;
         public readonly RefRO<CellMaterialComponent> Material;
         public readonly RefRW<CellComponent> Cell;
-        
         private readonly TransformAspect _transformAspect;
 
         public void Move([ReadOnly] GridComponent gridComponent, [ReadOnly] uint2 newPosition)

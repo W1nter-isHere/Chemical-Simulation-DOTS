@@ -7,7 +7,6 @@ namespace Components
     public class CellAuthoring : MonoBehaviour
     {
         public Vector2Int position;
-        public CellType cellType;
 
         private void OnValidate()
         {
@@ -24,8 +23,7 @@ namespace Components
         {
             AddComponent(new CellComponent
             {
-                Position = new uint2((uint)authoring.position.x, (uint)authoring.position.y),
-                CellType = authoring.cellType
+                Position = new uint2((uint)authoring.position.x, (uint)authoring.position.y)
             });
         }
     }
@@ -33,12 +31,12 @@ namespace Components
     public struct CellComponent : IComponentData
     {
         public uint2 Position;
-        public CellType CellType;
     }
 
     public enum CellType
     {
-        Solid,
+        StationarySolid,
+        FallingSolid,
         Liquid,
         Gas
     }
