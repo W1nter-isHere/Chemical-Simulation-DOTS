@@ -1,4 +1,5 @@
 ﻿using System;
+using Unity.Burst;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
@@ -27,24 +28,25 @@ namespace Components
         {
             return new Vector2Int((int) Math.Min(Math.Max(0, position.x), width - 1), (int) Math.Min(Math.Max(0, position.y), height - 1));
         }
-    }
-
-    public class GridBaker : Baker<GridAuthoring>
-    {
-        public override void Bake(GridAuthoring authoring)
+        
+        private class GridBaker : Baker<GridAuthoring>
         {
-            AddComponent(new GridComponent
+            public override void Bake(GridAuthoring authoring)
             {
-                Width = authoring.width,
-                Height = authoring.height,
-                CellWidth = authoring.cellWidth,
-                CellHeight = authoring.cellHeight,
-                OffsetX = authoring.offsetX,
-                OffsetY = authoring.offsetY
-            });
+                AddComponent(new GridComponent
+                {
+                    Width = authoring.width,
+                    Height = authoring.height,
+                    CellWidth = authoring.cellWidth,
+                    CellHeight = authoring.cellHeight,
+                    OffsetX = authoring.offsetX,
+                    OffsetY = authoring.offsetY
+                });
+            }
         }
     }
 
+    [BurstCompile]
     public struct GridComponent : IComponentData
     {
         public uint Width;
@@ -54,21 +56,25 @@ namespace Components
         public float OffsetX;
         public float OffsetY;
 
+        [BurstCompile]
         public uint2 WorldToGrid(float3 worldPosition)
         {
             return new uint2((uint)((worldPosition.x - OffsetX) / CellWidth), (uint)((worldPosition.y - OffsetY) / CellHeight));
         }
         
+        [BurstCompile]
         public float3 GridToWorld(uint2 gridPosition)
         {
             return new float3(CellWidth * gridPosition.x + OffsetX, CellHeight * gridPosition.y + OffsetY, 0);
         }
 
+        [BurstCompile]
         public uint2 RestrictPosition(uint2 position)
         {
             return new uint2(math.min(math.max(0, position.x), Width - 1), math.min(math.max(0, position.y), Height - 1));
         }
 
+        [BurstCompile]
         public bool ValidPosition(uint2 position)
         {
             return position.x < Width && position.y < Height;

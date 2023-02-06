@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using Unity.Burst;
+using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
@@ -15,19 +16,20 @@ namespace Components
             position = grid.RestrictPosition(position);
             transform.position = grid.GridToWorld(position);
         }
-    }
-
-    public class CellBaker : Baker<CellAuthoring>
-    {
-        public override void Bake(CellAuthoring authoring)
+        
+        private class CellBaker : Baker<CellAuthoring>
         {
-            AddComponent(new CellComponent
+            public override void Bake(CellAuthoring authoring)
             {
-                Position = new uint2((uint)authoring.position.x, (uint)authoring.position.y)
-            });
+                AddComponent(new CellComponent
+                {
+                    Position = new uint2((uint)authoring.position.x, (uint)authoring.position.y)
+                });
+            }
         }
     }
 
+    [BurstCompile]
     public struct CellComponent : IComponentData
     {
         public uint2 Position;

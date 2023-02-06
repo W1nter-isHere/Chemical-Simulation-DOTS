@@ -1,5 +1,4 @@
-﻿using System;
-using Components;
+﻿using Components;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
@@ -18,7 +17,7 @@ namespace Systems
 
         protected override void OnUpdate()
         {
-            var changed = Math.Abs(_camera.orthographicSize - _previousOrthographicSize) > 0.01;
+            var changed = math.abs(_camera.orthographicSize - _previousOrthographicSize) > 0.01;
             _previousOrthographicSize = _camera.orthographicSize;
             if (!changed) return;
             var grid = SystemAPI.GetSingletonRW<GridComponent>();
@@ -27,7 +26,7 @@ namespace Systems
             var worldHeight = _camera.orthographicSize * 2;
             var worldWidth = worldHeight * aspect;
             var btmLeft = new float2(-worldWidth / 2, -worldHeight / 2);
-
+            
             grid.ValueRW.Width = (uint) math.ceil(worldWidth / grid.ValueRO.CellWidth);
             grid.ValueRW.Height = (uint) math.ceil(worldHeight / grid.ValueRO.CellHeight);
             grid.ValueRW.OffsetX = btmLeft.x;

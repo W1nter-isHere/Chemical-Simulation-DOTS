@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using Unity.Burst;
+using Unity.Entities;
 using UnityEngine;
 
 namespace Components
@@ -7,20 +8,21 @@ namespace Components
     {
         public BrushType brushType;
         public uint brushSize = 1;
-    }
-
-    public class BrushBaker : Baker<BrushAuthoring>
-    {
-        public override void Bake(BrushAuthoring authoring)
+        
+        private class BrushBaker : Baker<BrushAuthoring>
         {
-            AddComponent(new BrushComponent
+            public override void Bake(BrushAuthoring authoring)
             {
-                BrushType = authoring.brushType,
-                BrushSize = authoring.brushSize
-            });
+                AddComponent(new BrushComponent
+                {
+                    BrushType = authoring.brushType,
+                    BrushSize = authoring.brushSize
+                });
+            }
         }
     }
-
+    
+    [BurstCompile]
     public struct BrushComponent : IComponentData
     {
         public BrushType BrushType;

@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using Unity.Burst;
+using Unity.Entities;
 using UnityEngine;
 
 namespace Components
@@ -6,19 +7,20 @@ namespace Components
     public class CellMaterialAuthoring : MonoBehaviour
     {
         public CellType cellType;
-    }
-
-    public class CellMaterialBaker : Baker<CellMaterialAuthoring>
-    {
-        public override void Bake(CellMaterialAuthoring authoring)
+        
+        private class CellMaterialBaker : Baker<CellMaterialAuthoring>
         {
-            AddComponent(new CellMaterialComponent
+            public override void Bake(CellMaterialAuthoring authoring)
             {
-                CellType = authoring.cellType
-            });
+                AddComponent(new CellMaterialComponent
+                {
+                    CellType = authoring.cellType
+                });
+            }
         }
     }
 
+    [BurstCompile]
     public struct CellMaterialComponent : IComponentData
     {
         public CellType CellType;

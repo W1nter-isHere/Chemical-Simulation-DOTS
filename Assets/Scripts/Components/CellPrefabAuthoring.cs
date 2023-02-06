@@ -1,4 +1,5 @@
-﻿using Unity.Entities;
+﻿using Unity.Burst;
+using Unity.Entities;
 using UnityEngine;
 
 namespace Components
@@ -6,19 +7,20 @@ namespace Components
     public class CellPrefabAuthoring : MonoBehaviour
     {
         public GameObject cellPrefab;
-    }
-
-    public class CellPrefabBaker : Baker<CellPrefabAuthoring>
-    {
-        public override void Bake(CellPrefabAuthoring authoring)
+        
+        private class CellPrefabBaker : Baker<CellPrefabAuthoring>
         {
-            AddComponent(new CellPrefabComponent
+            public override void Bake(CellPrefabAuthoring authoring)
             {
-                CellPrefab = GetEntity(authoring.cellPrefab)
-            });
+                AddComponent(new CellPrefabComponent
+                {
+                    CellPrefab = GetEntity(authoring.cellPrefab)
+                });
+            }
         }
     }
 
+    [BurstCompile]
     public struct CellPrefabComponent : IComponentData
     {
         public Entity CellPrefab;
