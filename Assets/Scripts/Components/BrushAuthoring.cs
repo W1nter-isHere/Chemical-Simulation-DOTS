@@ -26,6 +26,7 @@ namespace Components
     public struct BrushComponent : IComponentData
     {
         public BrushType BrushType;
+        public CellType CellType;
         public uint BrushSize;
     }
 

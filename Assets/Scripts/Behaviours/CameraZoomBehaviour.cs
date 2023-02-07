@@ -1,14 +1,19 @@
-﻿using UnityEngine;
+﻿using Unity.Entities;
+using UnityEngine;
 
 namespace Behaviours
 {
     public class CameraZoomBehaviour : MonoBehaviour
     {
+        public static CameraZoomBehaviour Instance { get; private set; }
+        public float OrthographicSize => _mainCamera.orthographicSize;
+
         private Camera _mainCamera;
         
-        private void Start()
+        private void Awake()
         {
             _mainCamera = GetComponent<Camera>();
+            Instance = this;
         }
 
         private void Update()

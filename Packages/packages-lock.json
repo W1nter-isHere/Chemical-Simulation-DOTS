@@ -9,6 +9,15 @@
       },
       "hash": "a35444d6d6f8030915776a4752dc09f07fec3e82"
     },
+    "com.tonymax.nsprites.foundation": {
+      "version": "https://github.com/Antoshidza/NSprites-Foundation.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.entities": "1.0.0-pre.15"
+      },
+      "hash": "f882537b0c1995e97ff8594157dba292144c38fb"
+    },
     "com.unity.2d.sprite": {
       "version": "1.0.0",
       "depth": 0,
