@@ -8,6 +8,8 @@ namespace Aspects
 {
     public readonly partial struct CellAspect : IAspect
     {
+        public readonly Entity Entity;
+        
         public readonly RefRW<CellMaterialComponent> Material;
         public readonly RefRW<CellComponent> Cell;
         private readonly TransformAspect _transformAspect;

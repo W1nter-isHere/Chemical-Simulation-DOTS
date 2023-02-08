@@ -4,7 +4,6 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
-using Utils;
 
 namespace Systems
 {
@@ -22,66 +21,45 @@ namespace Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            var query = state.EntityManager.CreateEntityQuery(new EntityQueryBuilder(Allocator.Temp)
-                .WithAll<CellComponent, CellMaterialComponent>());
+            var query = state.EntityManager.CreateEntityQuery(new EntityQueryBuilder(Allocator.Temp).WithAll<CellComponent, CellMaterialComponent>());
             if (query.IsEmpty) return;
             if (!SystemAPI.TryGetSingleton<GridComponent>(out var grid)) return;
 
-            var entityCount = query.CalculateEntityCount();
-            var cellPositionsBuffer = SystemAPI.GetSingletonBuffer<CellPosition>();
-            var cells = new NativeArray<CellAspect>(entityCount, Allocator.TempJob);
-
-            new FillNativeArraysJob
-                {
-                    CellPositions = cellPositionsBuffer,
-                    CellArray = cells
-                }
-                .ScheduleParallel(state.Dependency)
-                .Complete();
-
-            var newPositions = new NativeList<CellPosition>(entityCount, Allocator.TempJob);
+            var cellPositionsGrid = SystemAPI.GetSingleton<CellPositionsComponent>().Grid;
+            var toRemovePositions = new NativeList<uint2>(query.CalculateEntityCount(), Allocator.TempJob);
+            var toAddPositions = new NativeParallelHashMap<uint2, CellAspect>(query.CalculateEntityCount(), Allocator.TempJob);
 
             new UpdateJob
                 {
-                    ResultingCellPositions = newPositions.AsParallelWriter(),
-                    CellPositions = cellPositionsBuffer,
-                    CellArray = cells,
+                    ToRemoveCellPositions = toRemovePositions.AsParallelWriter(),
+                    ToAddCellPositions = toAddPositions.AsParallelWriter(),
+                    CellPositionsGrid = cellPositionsGrid, 
                     Grid = grid
                 }
                 .Schedule(state.Dependency)
                 .Complete();
 
-            cellPositionsBuffer.Clear();
-            cellPositionsBuffer.AddRange(newPositions.AsArray());
+            foreach (var toRemove in toRemovePositions)
+            {
+                cellPositionsGrid.Remove(toRemove);
+            }
 
-            newPositions.Dispose();
-            cells.Dispose();
-        }
-    }
+            foreach (var pair in toAddPositions)
+            {
+                cellPositionsGrid.TryAdd(pair.Key, pair.Value);
+            }
 
-    [BurstCompile]
-    public partial struct FillNativeArraysJob : IJobEntity
-    {
-        [NativeDisableParallelForRestriction] [WriteOnly]
-        public NativeArray<CellAspect> CellArray;
-
-        [ReadOnly] public DynamicBuffer<CellPosition> CellPositions;
-
-        [BurstCompile]
-        private void Execute(CellAspect cellAspect)
-        {
-            var i = CellPositions.IndexOf(cellAspect.Cell.ValueRO.Position);
-            if (i < 0 || i >= CellArray.Length) return;
-            CellArray[i] = cellAspect;
+            toRemovePositions.Dispose();
+            toAddPositions.Dispose();
         }
     }
 
     [BurstCompile]
     public partial struct UpdateJob : IJobEntity
     {
-        [WriteOnly] public NativeList<CellPosition>.ParallelWriter ResultingCellPositions;
-        [ReadOnly] public DynamicBuffer<CellPosition> CellPositions;
-        [ReadOnly] public NativeArray<CellAspect> CellArray;
+        [WriteOnly] public NativeList<uint2>.ParallelWriter ToRemoveCellPositions;
+        [WriteOnly] public NativeParallelHashMap<uint2, CellAspect>.ParallelWriter ToAddCellPositions;
+        [ReadOnly] public NativeParallelHashMap<uint2, CellAspect> CellPositionsGrid;
         [ReadOnly] public GridComponent Grid;
 
         [BurstCompile]
@@ -93,41 +71,32 @@ namespace Systems
             switch (cellAspect.Material.ValueRO.CellType)
             {
                 case CellType.StationarySolid:
-                    StayInPlace(currentPosition);
                     break;
                 case CellType.FallingSolid:
-                    if (MoveIfCan(new uint2(currentPosition.x, currentPosition.y - 1), cellAspect)) return;
-                    if (MoveIfCan(new uint2(currentPosition.x - 1, currentPosition.y - 1), cellAspect)) return;
-                    if (MoveIfCan(new uint2(currentPosition.x + 1, currentPosition.y - 1), cellAspect)) return;
-                    StayInPlace(currentPosition);
+                    if (MoveIfCan(currentPosition, new uint2(currentPosition.x, currentPosition.y - 1), cellAspect)) return;
+                    if (MoveIfCan(currentPosition, new uint2(currentPosition.x - 1, currentPosition.y - 1), cellAspect)) return;
+                    MoveIfCan(currentPosition, new uint2(currentPosition.x + 1, currentPosition.y - 1), cellAspect);
                     break;
                 case CellType.Liquid:
-                    StayInPlace(currentPosition);
                     break;
                 case CellType.Gas:
-                    StayInPlace(currentPosition);
                     break;
             }
         }
 
         [BurstCompile]
-        private void StayInPlace(uint2 currentPosition)
+        private void MoveTo(uint2 origin, uint2 destination, CellAspect cellAspect)
         {
-            ResultingCellPositions.AddNoResize(currentPosition);
+            cellAspect.Move(Grid, destination);
+            ToRemoveCellPositions.AddNoResize(origin);
+            ToAddCellPositions.TryAdd(destination, cellAspect);
         }
 
         [BurstCompile]
-        private void MoveTo(uint2 position, CellAspect cellAspect)
-        {
-            cellAspect.Move(Grid, position);
-            ResultingCellPositions.AddNoResize(position);
-        }
-
-        [BurstCompile]
-        private bool MoveIfCan(uint2 direction, CellAspect cellAspect)
+        private bool MoveIfCan(uint2 origin, uint2 direction, CellAspect cellAspect)
         {
             if (!CanMove(direction)) return false;
-            MoveTo(direction, cellAspect);
+            MoveTo(origin, direction, cellAspect);
             return true;
         }
         
@@ -135,7 +104,7 @@ namespace Systems
         private bool CanMove(uint2 direction, uint magnitude = 1)
         {
             if (!Grid.ValidPosition(direction)) return false;
-            return CellPositions.IndexOf(direction) == -1;
+            return !CellPositionsGrid.ContainsKey(direction);
         }
 
         [BurstCompile]
@@ -147,14 +116,13 @@ namespace Systems
                 return false;
             }
 
-            var index = CellPositions.IndexOf(direction);
-            if (index != -1)
+            if (!CellPositionsGrid.ContainsKey(direction))
             {
                 cellAtPos = default;
                 return false;
             }
 
-            cellAtPos = CellArray[index];
+            cellAtPos = CellPositionsGrid[direction];
             return true;
         }
     }
