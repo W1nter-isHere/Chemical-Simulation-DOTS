@@ -2219,6 +2219,7 @@ GameObject:
   - component: {fileID: 1314156804}
   - component: {fileID: 1314156803}
   - component: {fileID: 1314156805}
+  - component: {fileID: 1314156806}
   m_Layer: 5
   m_Name: FPS
   m_TagString: Untagged
@@ -2356,6 +2357,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   text: {fileID: 1314156803}
+--- !u!225 &1314156806
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1314156801}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 0
+  m_BlocksRaycasts: 0
+  m_IgnoreParentGroups: 0
 --- !u!1 &1315707157
 GameObject:
   m_ObjectHideFlags: 0

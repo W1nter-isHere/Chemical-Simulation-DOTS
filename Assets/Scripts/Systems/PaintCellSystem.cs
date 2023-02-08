@@ -85,10 +85,9 @@ namespace Systems
                     for (var i = 0; i < count; i++)
                     {
                         var position = resultingPositions[i];
-                        var cellPosition = new CellPosition { Position = position };
 
                         var entity = entities[i];
-                        cellPositions.Add(cellPosition);
+                        cellPositions.Add(position);
 
                         entityCommandBuffer.SetComponent(entity, new CellComponent
                         {
@@ -158,7 +157,7 @@ namespace Systems
     {
         [ReadOnly] public GridComponent Grid;
         [ReadOnly] public NativeArray<CellAspect> CellAspects;
-
+        
         [BurstCompile]
         public void Execute(int index)
         {

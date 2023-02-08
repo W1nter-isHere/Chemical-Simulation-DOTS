@@ -2,14 +2,19 @@
 using Components;
 using Unity.Entities;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace Systems
 {
+    [UpdateAfter(typeof(SetupGridSystem))]
     public partial class SpawnDefaultCellsSystem : SystemBase
     {
-        protected override void OnStartRunning()
+        private bool _initialized;
+
+        protected override void OnUpdate()
         {
-            // var grid = SystemAPI.GetSingleton<GridComponent>();
+            // if (_initialized) return;
+            // if (!SystemAPI.TryGetSingleton<GridComponent>(out var grid)) return;
             // var cellPrefab = SystemAPI.GetSingleton<CellPrefabComponent>();
             //
             // for (uint i = 0; i < grid.Width; i++)
@@ -19,12 +24,13 @@ namespace Systems
             //         if (j % 2 == 0) continue;
             //         var cellAspect = SystemAPI.GetAspectRW<CellAspect>(EntityManager.Instantiate(cellPrefab.CellPrefab));
             //         cellAspect.Move(grid, new uint2(i, j));
+            //         cellAspect.Material.ValueRW.CellType = CellType.FallingSolid;
             //     }
             // }
-        }
-
-        protected override void OnUpdate()
-        {
+            //
+            // _initialized = true;
+            //
+            // Debug.Log(EntityManager.CreateEntityQuery(typeof(CellComponent)).CalculateEntityCount().ToString());
         }
     }
 }

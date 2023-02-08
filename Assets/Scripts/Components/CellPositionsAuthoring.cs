@@ -20,6 +20,11 @@ namespace Components
     {
         public uint2 Position;
 
+        public static implicit operator CellPosition(uint2 position)
+        {
+            return new CellPosition { Position = position };
+        } 
+        
         public bool Equals(CellPosition other)
         {
             return Position.Equals(other.Position);

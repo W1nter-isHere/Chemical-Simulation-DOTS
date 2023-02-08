@@ -7,6 +7,7 @@ namespace Components
     public class BrushAuthoring : MonoBehaviour
     {
         public BrushType brushType;
+        public CellType cellType;
         public uint brushSize = 1;
         
         private class BrushBaker : Baker<BrushAuthoring>
@@ -16,7 +17,8 @@ namespace Components
                 AddComponent(new BrushComponent
                 {
                     BrushType = authoring.brushType,
-                    BrushSize = authoring.brushSize
+                    CellType = authoring.cellType,
+                    BrushSize = authoring.brushSize,
                 });
             }
         }

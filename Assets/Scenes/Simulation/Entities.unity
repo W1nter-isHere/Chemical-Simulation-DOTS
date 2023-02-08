@@ -197,6 +197,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   brushType: 0
+  cellType: 0
   brushSize: 1
 --- !u!4 &790463511
 Transform:
@@ -259,8 +260,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   width: 1
   height: 1
-  cellWidth: 0.1
-  cellHeight: 0.1
+  cellWidth: 0.25
+  cellHeight: 0.25
   offsetX: 0
   offsetY: 0
 --- !u!1 &1326884862
