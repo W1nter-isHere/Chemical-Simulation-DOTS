@@ -49,7 +49,7 @@ namespace Systems
 
             foreach (var pair in newPositionsGrid)
             {
-                cellPositionsGrid.TryAdd(pair.Key, pair.Value);
+                cellPositionsGrid.Add(pair.Key, pair.Value);
             }
                 
             newPositionsGrid.Dispose();
@@ -65,7 +65,6 @@ namespace Systems
 
             #region Spawn New Cells
 
-            var cellPrefab = SystemAPI.GetSingleton<CellPrefabComponent>();
             var brush = SystemAPI.GetSingleton<BrushComponent>();
 
             foreach (var spawnCellQueue in SystemAPI.Query<DynamicBuffer<CellSpawnQueue>>())
@@ -87,28 +86,18 @@ namespace Systems
                 spawnCellQueue.Clear();
 
                 var count = resultingPositions.Length;
-                var entities = new NativeArray<Entity>(count, Allocator.Temp);
 
-                entityCommandBuffer.Instantiate(cellPrefab.CellPrefab, entities);
                 for (var i = 0; i < count; i++)
                 {
                     var position = resultingPositions[i];
+                    var entity = entityCommandBuffer.CreateEntity();
 
-                    var entity = entities[i];
-
-                    entityCommandBuffer.SetComponent(entity, new CellComponent
-                    {
-                        Position = position
-                    });
-                    entityCommandBuffer.SetComponent(entity, new CellMaterialComponent
-                    {
-                        CellType = brush.CellType
-                    });
-                    entityCommandBuffer.AddComponent<NewlyInstantiatedCellTag>(entities);
+                    entityCommandBuffer.AddComponent(entity, new CellComponent { Position = position });
+                    entityCommandBuffer.AddComponent(entity, new CellMaterialComponent { CellType = brush.CellType });
+                    entityCommandBuffer.AddComponent<NewlyInstantiatedCellTag>(entity);
                 }
 
                 resultingPositions.Dispose();
-                entities.Dispose();
             }
 
             #endregion

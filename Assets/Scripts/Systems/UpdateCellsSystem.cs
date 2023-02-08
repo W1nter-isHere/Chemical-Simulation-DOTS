@@ -1,9 +1,11 @@
-﻿using Aspects;
+﻿using System.Diagnostics;
+using Aspects;
 using Components;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Debug = UnityEngine.Debug;
 
 namespace Systems
 {
@@ -21,6 +23,7 @@ namespace Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var stopwatch = Stopwatch.StartNew();
             if (!SystemAPI.TryGetSingleton<GridComponent>(out var grid)) return;
             
             var query = state.EntityManager.CreateEntityQuery(new EntityQueryBuilder(Allocator.Temp).WithAll<CellComponent, CellMaterialComponent>());
@@ -53,6 +56,7 @@ namespace Systems
 
             toRemovePositions.Dispose();
             toAddPositions.Dispose();
+            Debug.Log(stopwatch.ElapsedMilliseconds.ToString());
         }
     }
 

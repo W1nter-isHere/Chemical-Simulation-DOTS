@@ -10,8 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2281967864683464663}
   - component: {fileID: 2281967864683464660}
-  - component: {fileID: 2281967864683464661}
-  - component: {fileID: 2281967864683464658}
+  - component: {fileID: 8887830331188058867}
   m_Layer: 0
   m_Name: Cell
   m_TagString: Untagged
@@ -86,7 +85,7 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!114 &2281967864683464661
+--- !u!114 &8887830331188058867
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -95,20 +94,6 @@ MonoBehaviour:
   m_GameObject: {fileID: 2281967864683464659}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7daa1babe05448c1996d18bed815f9a7, type: 3}
+  m_Script: {fileID: 11500000, guid: dbd360ed961040d0ba6e87b178c7648c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  position: {x: 0, y: 0}
---- !u!114 &2281967864683464658
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2281967864683464659}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 20697dae35674fb7bc969095399976c3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  cellType: 0
