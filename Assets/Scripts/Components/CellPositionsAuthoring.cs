@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Aspects;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
@@ -11,33 +12,16 @@ namespace Components
         {
             public override void Bake(CellPositionsAuthoring authoring)
             {
-                AddBuffer<CellPosition>();
+                AddComponent(new CellPositionsComponent
+                {
+                    Grid = new NativeParallelHashMap<uint2, CellAspect>(256, Allocator.Persistent)
+                });
             }
         }
     }
 
-    public struct CellPosition : IBufferElementData, IEquatable<CellPosition>
+    public struct CellPositionsComponent : IComponentData
     {
-        public uint2 Position;
-
-        public static implicit operator CellPosition(uint2 position)
-        {
-            return new CellPosition { Position = position };
-        } 
-        
-        public bool Equals(CellPosition other)
-        {
-            return Position.Equals(other.Position);
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is CellPosition other && Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            return Position.GetHashCode();
-        }
+        public NativeParallelHashMap<uint2, CellAspect> Grid;
     }
 }

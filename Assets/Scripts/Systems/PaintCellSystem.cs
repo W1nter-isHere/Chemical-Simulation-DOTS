@@ -5,7 +5,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
-using Utils;
 
 namespace Systems
 {
@@ -23,89 +22,96 @@ namespace Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            if (SystemAPI.TryGetSingleton<GridComponent>(out var grid))
+            if (!SystemAPI.TryGetSingleton<GridComponent>(out var grid)) return;
+
+            #region Instantiate Newly Spawned Cells Data
+
+            var query = state.EntityManager.CreateEntityQuery(new EntityQueryBuilder(Allocator.Temp)
+                .WithAll<NewlyInstantiatedCellTag>());
+            var newlyCreatedCells = query.ToEntityArray(Allocator.Temp);
+            var newlyCreatedCellAspects = new NativeArray<CellAspect>(newlyCreatedCells.Length, Allocator.TempJob);
+            var cellPositionsGrid = SystemAPI.GetSingleton<CellPositionsComponent>().Grid;
+            var newPositionsGrid = new NativeParallelHashMap<uint2, CellAspect>(query.CalculateEntityCount(), Allocator.TempJob);
+                
+            for (var i = 0; i < newlyCreatedCells.Length; i++)
             {
-                #region Instantiate Newly Spawned Cells Data
+                newlyCreatedCellAspects[i] = SystemAPI.GetAspectRW<CellAspect>(newlyCreatedCells[i]);
+            }
 
-                var query = state.EntityManager.CreateEntityQuery(new EntityQueryBuilder(Allocator.Temp)
-                    .WithAll<NewlyInstantiatedCellTag>());
-                var newlyCreatedCells = query.ToEntityArray(Allocator.Temp);
-                var newlyCreatedCellAspects = new NativeArray<CellAspect>(newlyCreatedCells.Length, Allocator.TempJob);
-
-                for (var i = 0; i < newlyCreatedCells.Length; i++)
+            new SetupNewlyInstantiatedCellsJob
                 {
-                    newlyCreatedCellAspects[i] = SystemAPI.GetAspectRW<CellAspect>(newlyCreatedCells[i]);
+                    CellPositionGrid = newPositionsGrid.AsParallelWriter(),
+                    Grid = grid,
+                    CellAspects = newlyCreatedCellAspects,
                 }
+                .Schedule(newlyCreatedCellAspects.Length, 16)
+                .Complete();
 
-                new SetupNewlyInstantiatedCellsJob
+            foreach (var pair in newPositionsGrid)
+            {
+                cellPositionsGrid.TryAdd(pair.Key, pair.Value);
+            }
+                
+            newPositionsGrid.Dispose();
+                
+            var entityCommandBuffer = SystemAPI.GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>()
+                .CreateCommandBuffer(state.WorldUnmanaged);
+            entityCommandBuffer.RemoveComponent<NewlyInstantiatedCellTag>(newlyCreatedCells);
+
+            newlyCreatedCells.Dispose();
+            newlyCreatedCellAspects.Dispose();
+
+            #endregion
+
+            #region Spawn New Cells
+
+            var cellPrefab = SystemAPI.GetSingleton<CellPrefabComponent>();
+            var brush = SystemAPI.GetSingleton<BrushComponent>();
+
+            foreach (var spawnCellQueue in SystemAPI.Query<DynamicBuffer<CellSpawnQueue>>())
+            {
+                if (spawnCellQueue.Length <= 0) continue;
+                var resultingPositions = new NativeList<uint2>(Allocator.TempJob);
+
+                new CalculatePositionsJob
                     {
+                        Brush = brush,
                         Grid = grid,
-                        CellAspects = newlyCreatedCellAspects
+                        Results = resultingPositions,
+                        SpawnQueues = spawnCellQueue,
+                        CellPositions = cellPositionsGrid
                     }
-                    .Schedule(newlyCreatedCellAspects.Length, 16)
+                    .Schedule(spawnCellQueue.Length, 64)
                     .Complete();
 
-                var entityCommandBuffer = SystemAPI.GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>()
-                    .CreateCommandBuffer(state.WorldUnmanaged);
-                entityCommandBuffer.RemoveComponent<NewlyInstantiatedCellTag>(newlyCreatedCells);
+                spawnCellQueue.Clear();
 
-                newlyCreatedCells.Dispose();
-                newlyCreatedCellAspects.Dispose();
+                var count = resultingPositions.Length;
+                var entities = new NativeArray<Entity>(count, Allocator.Temp);
 
-                #endregion
-
-                #region Spawn New Cells
-
-                var cellPrefab = SystemAPI.GetSingleton<CellPrefabComponent>();
-                var brush = SystemAPI.GetSingleton<BrushComponent>();
-                var cellPositions = SystemAPI.GetSingletonBuffer<CellPosition>();
-
-                foreach (var spawnCellQueue in SystemAPI.Query<DynamicBuffer<CellSpawnQueue>>())
+                entityCommandBuffer.Instantiate(cellPrefab.CellPrefab, entities);
+                for (var i = 0; i < count; i++)
                 {
-                    if (spawnCellQueue.Length <= 0) continue;
-                    var resultingPositions = new NativeList<uint2>(Allocator.TempJob);
+                    var position = resultingPositions[i];
 
-                    new CalculatePositionsJob
-                        {
-                            Brush = brush,
-                            Grid = grid,
-                            Results = resultingPositions,
-                            SpawnQueues = spawnCellQueue,
-                            CellPositions = cellPositions
-                        }
-                        .Schedule(spawnCellQueue.Length, 64)
-                        .Complete();
+                    var entity = entities[i];
 
-                    spawnCellQueue.Clear();
-
-                    var count = resultingPositions.Length;
-                    var entities = new NativeArray<Entity>(count, Allocator.Temp);
-
-                    entityCommandBuffer.Instantiate(cellPrefab.CellPrefab, entities);
-                    for (var i = 0; i < count; i++)
+                    entityCommandBuffer.SetComponent(entity, new CellComponent
                     {
-                        var position = resultingPositions[i];
-
-                        var entity = entities[i];
-                        cellPositions.Add(position);
-
-                        entityCommandBuffer.SetComponent(entity, new CellComponent
-                        {
-                            Position = position
-                        });
-                        entityCommandBuffer.SetComponent(entity, new CellMaterialComponent
-                        {
-                            CellType = brush.CellType
-                        });
-                        entityCommandBuffer.AddComponent<NewlyInstantiatedCellTag>(entities);
-                    }
-
-                    resultingPositions.Dispose();
-                    entities.Dispose();
+                        Position = position
+                    });
+                    entityCommandBuffer.SetComponent(entity, new CellMaterialComponent
+                    {
+                        CellType = brush.CellType
+                    });
+                    entityCommandBuffer.AddComponent<NewlyInstantiatedCellTag>(entities);
                 }
 
-                #endregion
+                resultingPositions.Dispose();
+                entities.Dispose();
             }
+
+            #endregion
         }
     }
 
@@ -117,7 +123,7 @@ namespace Systems
         [ReadOnly] public GridComponent Grid;
         [ReadOnly] public BrushComponent Brush;
         [ReadOnly] public DynamicBuffer<CellSpawnQueue> SpawnQueues;
-        [ReadOnly] public DynamicBuffer<CellPosition> CellPositions;
+        [ReadOnly] public NativeParallelHashMap<uint2, CellAspect> CellPositions;
 
         [BurstCompile]
         public void Execute(int index)
@@ -139,7 +145,7 @@ namespace Systems
                             !(math.sqrt((x - centerX) * (x - centerX) + (y - centerY) * (y - centerY)) > r)) continue;
 
                         var value = new uint2(x, y);
-                        if (Results.Contains(value) || CellPositions.Contains(new CellPosition { Position = value }))
+                        if (Results.Contains(value) || CellPositions.ContainsKey(value))
                             continue;
                         Results.Add(value);
                     }
@@ -147,7 +153,7 @@ namespace Systems
             }
 
             var center = new uint2(centerX, centerY);
-            if (Results.Contains(center) || CellPositions.Contains(new CellPosition { Position = center })) return;
+            if (Results.Contains(center) || CellPositions.ContainsKey(center)) return;
             Results.Add(center);
         }
     }
@@ -155,6 +161,7 @@ namespace Systems
     [BurstCompile]
     public struct SetupNewlyInstantiatedCellsJob : IJobParallelFor
     {
+        [WriteOnly] public NativeParallelHashMap<uint2, CellAspect>.ParallelWriter CellPositionGrid;
         [ReadOnly] public GridComponent Grid;
         [ReadOnly] public NativeArray<CellAspect> CellAspects;
         
@@ -162,7 +169,9 @@ namespace Systems
         public void Execute(int index)
         {
             var cellAspect = CellAspects[index];
-            cellAspect.Move(Grid, cellAspect.Cell.ValueRO.Position);
+            var pos = cellAspect.Cell.ValueRO.Position;
+            cellAspect.Move(Grid, pos);
+            CellPositionGrid.TryAdd(pos, cellAspect);
         }
     }
 }
