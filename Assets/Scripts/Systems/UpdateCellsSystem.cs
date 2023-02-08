@@ -21,13 +21,15 @@ namespace Systems
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            if (!SystemAPI.TryGetSingleton<GridComponent>(out var grid)) return;
+            
             var query = state.EntityManager.CreateEntityQuery(new EntityQueryBuilder(Allocator.Temp).WithAll<CellComponent, CellMaterialComponent>());
             if (query.IsEmpty) return;
-            if (!SystemAPI.TryGetSingleton<GridComponent>(out var grid)) return;
-
+            
+            var entityCount = query.CalculateEntityCount();
             var cellPositionsGrid = SystemAPI.GetSingleton<CellPositionsComponent>().Grid;
-            var toRemovePositions = new NativeList<uint2>(query.CalculateEntityCount(), Allocator.TempJob);
-            var toAddPositions = new NativeParallelHashMap<uint2, CellAspect>(query.CalculateEntityCount(), Allocator.TempJob);
+            var toRemovePositions = new NativeList<uint2>(entityCount, Allocator.TempJob);
+            var toAddPositions = new NativeParallelHashMap<uint2, CellAspect>(entityCount, Allocator.TempJob);
 
             new UpdateJob
                 {
